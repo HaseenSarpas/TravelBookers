@@ -10,7 +10,7 @@ function RentalForm({ form, onChange, onSubmit, submitting }) {
   return (
     <section className="admin-card">
       <h2>Add In-Person Rental</h2>
-      <form className="admin-form" onSubmit={(e) => { e.preventDefault(); onSubmit(); }}>
+      <form className="admin-form" onSubmit={onSubmit}>
         <div className="admin-form-grid">
           <div className="admin-form-field">
             <label htmlFor="first_name">First Name</label>
