@@ -8,6 +8,7 @@ import "swiper/css";
 import "swiper/css/navigation";
 import "swiper/css/thumbs";
 import "swiper/css/free-mode";
+import { formatDateForAPI } from "../utils/dateUtils";
 import "../css/VehicleDetail.css";
 
 const API_BASE = import.meta.env.MODE === "development" ? "http://localhost:3000" : "";
@@ -183,8 +184,8 @@ function VehicleDetail({ onRequireSignIn }) {
       state: {
         vehicleId: vehicle.vehicle_id,
         vehicleTitle: `${vehicle.year} ${vehicle.make} ${vehicle.model}`,
-        startDate: startDate.toISOString(),
-        endDate: effectiveEndDate.toISOString(),
+        startDate: formatDateForAPI(startDate),
+        endDate: formatDateForAPI(effectiveEndDate),
         numberOfDays,
         pricePerDay,
         baseTotal: totalCost,

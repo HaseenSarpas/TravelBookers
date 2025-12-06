@@ -107,18 +107,32 @@ export const createRental = async (req, res) => {
       });
   }
 
-  // Validate dates
-  const start = new Date(start_date);
-  const end = new Date(end_date);
-  if (isNaN(start.getTime()) || isNaN(end.getTime())) {
-    return res
-      .status(400)
-      .json({ success: false, message: "Invalid date format" });
+  // Validate dates - handle both date-only strings (YYYY-MM-DD) and ISO strings
+  // Normalize to date-only for consistent storage
+  let normalizedStartDate = start_date;
+  let normalizedEndDate = end_date;
+  
+  // If dates come as ISO strings, extract date-only portion
+  if (start_date.includes('T')) {
+    normalizedStartDate = start_date.split('T')[0];
   }
-  if (end < start) {
+  if (end_date.includes('T')) {
+    normalizedEndDate = end_date.split('T')[0];
+  }
+  
+  // Validate date format (should be YYYY-MM-DD)
+  const datePattern = /^\d{4}-\d{2}-\d{2}$/;
+  if (!datePattern.test(normalizedStartDate) || !datePattern.test(normalizedEndDate)) {
     return res
       .status(400)
-      .json({ success: false, message: "end_date must be after start_date" });
+      .json({ success: false, message: "Invalid date format. Expected YYYY-MM-DD" });
+  }
+  
+  // Compare dates as strings (YYYY-MM-DD format allows string comparison)
+  if (normalizedEndDate < normalizedStartDate) {
+    return res
+      .status(400)
+      .json({ success: false, message: "end_date must be after or equal to start_date" });
   }
 
   try {
@@ -138,8 +152,8 @@ export const createRental = async (req, res) => {
       VALUES (
         ${user_id},
         ${vehicle_id},
-        ${start_date},
-        ${end_date},
+        ${normalizedStartDate},
+        ${normalizedEndDate},
         ${status || "active"},
         ${insurance_purchased ?? false},
         ${first_name || null},
@@ -214,18 +228,37 @@ export const updateRental = async (req, res) => {
       return_comment !== undefined ? return_comment : currentRental[0].return_comment;
 
     // Validate dates if both are being updated
+    // Normalize dates to date-only format
+    let normalizedUpdateStart = updateStartDate;
+    let normalizedUpdateEnd = updateEndDate;
+    
     if (start_date !== undefined || end_date !== undefined) {
-      const start = new Date(updateStartDate);
-      const end = new Date(updateEndDate);
-      if (isNaN(start.getTime()) || isNaN(end.getTime())) {
-        return res
-          .status(400)
-          .json({ success: false, message: "Invalid date format" });
+      // Extract date-only portion if ISO string
+      if (updateStartDate && updateStartDate.includes('T')) {
+        normalizedUpdateStart = updateStartDate.split('T')[0];
       }
-      if (end < start) {
+      if (updateEndDate && updateEndDate.includes('T')) {
+        normalizedUpdateEnd = updateEndDate.split('T')[0];
+      }
+      
+      // Validate date format
+      const datePattern = /^\d{4}-\d{2}-\d{2}$/;
+      if (start_date !== undefined && !datePattern.test(normalizedUpdateStart)) {
         return res
           .status(400)
-          .json({ success: false, message: "end_date must be after start_date" });
+          .json({ success: false, message: "Invalid start_date format. Expected YYYY-MM-DD" });
+      }
+      if (end_date !== undefined && !datePattern.test(normalizedUpdateEnd)) {
+        return res
+          .status(400)
+          .json({ success: false, message: "Invalid end_date format. Expected YYYY-MM-DD" });
+      }
+      
+      // Compare as strings
+      if (normalizedUpdateEnd < normalizedUpdateStart) {
+        return res
+          .status(400)
+          .json({ success: false, message: "end_date must be after or equal to start_date" });
       }
     }
 
@@ -234,8 +267,8 @@ export const updateRental = async (req, res) => {
       SET 
         user_id = ${updateUserId},
         vehicle_id = ${updateVehicleId},
-        start_date = ${updateStartDate},
-        end_date = ${updateEndDate},
+        start_date = ${normalizedUpdateStart},
+        end_date = ${normalizedUpdateEnd},
         status = ${updateStatus},
         insurance_purchased = ${updateInsurance},
         first_name = ${updateFirstName},

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import "../css/AdminDashboard.css";
 
 const API_BASE = import.meta.env.MODE === "development" ? "http://localhost:3000" : "";
@@ -49,18 +49,39 @@ function AdminOverduePane() {
     return () => clearInterval(intervalId);
   }, []);
 
+  // Get today's date in local timezone, normalized to midnight
   const today = new Date();
   today.setHours(0, 0, 0, 0);
+
+  // Helper to normalize date strings to local midnight (avoiding timezone issues)
+  const normalizeDateForComparison = (dateStr) => {
+    if (!dateStr) return null;
+    // If date is already in YYYY-MM-DD format, parse it as local date
+    if (typeof dateStr === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+      const [year, month, day] = dateStr.split('-').map(Number);
+      const date = new Date(year, month - 1, day);
+      date.setHours(0, 0, 0, 0);
+      return date;
+    }
+    // Otherwise, parse normally but normalize to local midnight
+    const date = new Date(dateStr);
+    date.setHours(0, 0, 0, 0);
+    return date;
+  };
 
   const overdueRentals = rentals
     .filter((r) => r.status === "active")
     .filter((r) => {
       if (!r.end_date) return false;
-      const end = new Date(r.end_date);
-      end.setHours(0, 0, 0, 0);
+      const end = normalizeDateForComparison(r.end_date);
+      if (!end) return false;
       return end < today;
     })
-    .sort((a, b) => new Date(a.end_date) - new Date(b.end_date));
+    .sort((a, b) => {
+      const dateA = normalizeDateForComparison(a.end_date);
+      const dateB = normalizeDateForComparison(b.end_date);
+      return (dateA || new Date(0)) - (dateB || new Date(0));
+    });
 
   if (loading && rentals.length === 0) {
     return (
@@ -83,8 +104,8 @@ function AdminOverduePane() {
   }
 
   const daysOverdue = (endDate) => {
-    const end = new Date(endDate);
-    end.setHours(0, 0, 0, 0);
+    const end = normalizeDateForComparison(endDate);
+    if (!end) return 0;
     const diffMs = today.getTime() - end.getTime();
     return Math.max(1, Math.floor(diffMs / (1000 * 60 * 60 * 24)));
   };
