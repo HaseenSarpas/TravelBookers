@@ -2,6 +2,8 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import "../css/AdminLogin.css";
 
+const API_BASE = import.meta.env.MODE === "development" ? "http://localhost:3000" : "";
+
 function AdminLogin() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -15,7 +17,7 @@ function AdminLogin() {
     setLoading(true);
 
     try {
-      const response = await fetch("http://localhost:3000/api/users/login", {
+      const response = await fetch(`${API_BASE}/api/users/login`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

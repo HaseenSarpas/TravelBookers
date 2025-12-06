@@ -35,6 +35,7 @@ app.use(
     contentSecurityPolicy: {
       directives: {
         defaultSrc: ["'self'"],
+        connectSrc: ["'self'"], // Allow API connections to same origin
         imgSrc: [
           "'self'",
           "data:",
