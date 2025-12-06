@@ -56,6 +56,16 @@ function AdminOverduePane() {
     d.setHours(0, 0, 0, 0);
     return d;
   })();
+  
+  // Get today as a date string for useMemo dependency (YYYY-MM-DD format)
+  // Recalculate on each render so the memo updates when the day changes
+  const todayString = (() => {
+    const d = new Date();
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  })();
 
   // Helper to normalize date strings to local midnight (avoiding timezone issues)
   // PostgreSQL DATE values come as strings, and we need to parse them as local dates
@@ -71,13 +81,24 @@ function AdminOverduePane() {
     // If date is in YYYY-MM-DD format, parse it as local date (not UTC)
     if (typeof dateOnly === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dateOnly)) {
       const [year, month, day] = dateOnly.split('-').map(Number);
-      // Create date in local timezone (not UTC)
+      // Create date in local timezone (not UTC) to avoid timezone shifts
       const date = new Date(year, month - 1, day);
       date.setHours(0, 0, 0, 0);
       return date;
     }
     
-    // Fallback: try to parse and normalize
+    // Fallback: if it's still an ISO string, extract date part and parse as local
+    if (typeof dateStr === 'string' && dateStr.includes('T')) {
+      const extracted = dateStr.split('T')[0];
+      if (/^\d{4}-\d{2}-\d{2}$/.test(extracted)) {
+        const [year, month, day] = extracted.split('-').map(Number);
+        const date = new Date(year, month - 1, day);
+        date.setHours(0, 0, 0, 0);
+        return date;
+      }
+    }
+    
+    // Last resort: try to parse and normalize (may have timezone issues)
     const date = new Date(dateStr);
     if (isNaN(date.getTime())) return null;
     // Normalize to local midnight
@@ -86,22 +107,26 @@ function AdminOverduePane() {
   };
 
   const overdueRentals = useMemo(() => {
-    return rentals
-      .filter((r) => r.status === "active")
+    const activeRentals = rentals.filter((r) => r.status === "active");
+    
+    const overdue = activeRentals
       .filter((r) => {
         if (!r.end_date) return false;
         const end = normalizeDateForComparison(r.end_date);
         if (!end) return false;
         // Only mark as overdue if end date is strictly before today (not equal to today)
         // Compare dates as date-only (ignore time)
-        return end < today;
+        const isOverdue = end < today;
+        return isOverdue;
       })
       .sort((a, b) => {
         const dateA = normalizeDateForComparison(a.end_date);
         const dateB = normalizeDateForComparison(b.end_date);
         return (dateA || new Date(0)) - (dateB || new Date(0));
       });
-  }, [rentals, today]);
+    
+    return overdue;
+  }, [rentals, todayString]);
 
   if (loading && rentals.length === 0) {
     return (
@@ -133,9 +158,15 @@ function AdminOverduePane() {
   const formatDate = (dateStr) => {
     if (!dateStr) return "";
     
+    // Extract date-only portion if it's an ISO string with time
+    let dateOnly = dateStr;
+    if (typeof dateStr === 'string' && dateStr.includes('T')) {
+      dateOnly = dateStr.split('T')[0];
+    }
+    
     // Handle YYYY-MM-DD format (from PostgreSQL DATE type) as local date
-    if (typeof dateStr === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
-      const [year, month, day] = dateStr.split('-').map(Number);
+    if (typeof dateOnly === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dateOnly)) {
+      const [year, month, day] = dateOnly.split('-').map(Number);
       const d = new Date(year, month - 1, day);
       if (Number.isNaN(d.getTime())) return dateStr;
       return d.toLocaleDateString(undefined, {
@@ -145,7 +176,24 @@ function AdminOverduePane() {
       });
     }
     
-    // Handle ISO strings or other formats
+    // Fallback: try to parse as date, but extract date portion first to avoid timezone issues
+    // If it's still an ISO string, extract the date part
+    if (typeof dateStr === 'string' && dateStr.includes('T')) {
+      const extracted = dateStr.split('T')[0];
+      if (/^\d{4}-\d{2}-\d{2}$/.test(extracted)) {
+        const [year, month, day] = extracted.split('-').map(Number);
+        const d = new Date(year, month - 1, day);
+        if (!Number.isNaN(d.getTime())) {
+          return d.toLocaleDateString(undefined, {
+            year: "numeric",
+            month: "short",
+            day: "numeric",
+          });
+        }
+      }
+    }
+    
+    // Last resort: try parsing directly (may have timezone issues)
     const d = new Date(dateStr);
     if (Number.isNaN(d.getTime())) return dateStr;
     return d.toLocaleDateString(undefined, {
