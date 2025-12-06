@@ -1,5 +1,5 @@
 import { sql } from "../config/db.js";
-import bcrypt from "bcrypt";
+import bcrypt from "bcryptjs";
 
 // CREATE READ UPDATE and DELETE operations (CRUD)
 

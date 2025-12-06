@@ -17,7 +17,7 @@ import commentRoutes from "./routes/commentRoutes.js";
 import paymentRoutes from "./routes/paymentRoutes.js";
 import mailerLiteRoutes from "./routes/mailerLiteRoutes.js";
 import { sql } from "./config/db.js"; //connector to database when "sql" is called
-import bcrypt from "bcrypt";
+import bcrypt from "bcryptjs";
 // import { aj } from "./lib/arcjet.js"; //import arcjet instance for rate limiting and security
 
 dotenv.config(); // Load environment variables from .env file
