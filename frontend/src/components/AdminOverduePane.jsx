@@ -50,12 +50,12 @@ function AdminOverduePane() {
   }, []);
 
   // Get today's date in local timezone, normalized to midnight
-  // Use useMemo to ensure it's calculated consistently
-  const today = useMemo(() => {
+  // Calculate on each render to ensure it stays current even if component stays mounted past midnight
+  const today = (() => {
     const d = new Date();
     d.setHours(0, 0, 0, 0);
     return d;
-  }, []);
+  })();
 
   // Helper to normalize date strings to local midnight (avoiding timezone issues)
   // PostgreSQL DATE values come as strings, and we need to parse them as local dates
