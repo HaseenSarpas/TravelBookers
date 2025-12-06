@@ -1,4 +1,5 @@
 import { useEffect, useState, useMemo } from "react";
+import { formatDate as formatDateUtil } from "../utils/dateUtils";
 import "../css/AdminDashboard.css";
 
 const API_BASE = import.meta.env.MODE === "development" ? "http://localhost:3000" : "";
@@ -69,37 +70,37 @@ function AdminOverduePane() {
 
   // Helper to normalize date strings to local midnight (avoiding timezone issues)
   // PostgreSQL DATE values come as strings, and we need to parse them as local dates
+  // This function always extracts the YYYY-MM-DD portion and parses it as a local date
   const normalizeDateForComparison = (dateStr) => {
     if (!dateStr) return null;
     
-    // Extract date-only portion if it's an ISO string with time
-    let dateOnly = dateStr;
-    if (typeof dateStr === 'string' && dateStr.includes('T')) {
-      dateOnly = dateStr.split('T')[0];
+    // Convert to string if it's not already
+    const str = String(dateStr);
+    
+    // Extract date-only portion (YYYY-MM-DD) from any format
+    let dateOnly = str;
+    
+    // If it's an ISO string with time, extract just the date part
+    if (str.includes('T')) {
+      dateOnly = str.split('T')[0];
+    }
+    // If it has a space (like "2024-12-06 00:00:00"), extract just the date part
+    else if (str.includes(' ')) {
+      dateOnly = str.split(' ')[0];
     }
     
-    // If date is in YYYY-MM-DD format, parse it as local date (not UTC)
-    if (typeof dateOnly === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dateOnly)) {
-      const [year, month, day] = dateOnly.split('-').map(Number);
+    // Now try to match YYYY-MM-DD format
+    const dateMatch = dateOnly.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (dateMatch) {
+      const [, year, month, day] = dateMatch;
       // Create date in local timezone (not UTC) to avoid timezone shifts
-      const date = new Date(year, month - 1, day);
+      const date = new Date(Number(year), Number(month) - 1, Number(day));
       date.setHours(0, 0, 0, 0);
       return date;
     }
     
-    // Fallback: if it's still an ISO string, extract date part and parse as local
-    if (typeof dateStr === 'string' && dateStr.includes('T')) {
-      const extracted = dateStr.split('T')[0];
-      if (/^\d{4}-\d{2}-\d{2}$/.test(extracted)) {
-        const [year, month, day] = extracted.split('-').map(Number);
-        const date = new Date(year, month - 1, day);
-        date.setHours(0, 0, 0, 0);
-        return date;
-      }
-    }
-    
-    // Last resort: try to parse and normalize (may have timezone issues)
-    const date = new Date(dateStr);
+    // Last resort: try to parse as-is and normalize (may have timezone issues)
+    const date = new Date(str);
     if (isNaN(date.getTime())) return null;
     // Normalize to local midnight
     date.setHours(0, 0, 0, 0);
@@ -109,14 +110,25 @@ function AdminOverduePane() {
   const overdueRentals = useMemo(() => {
     const activeRentals = rentals.filter((r) => r.status === "active");
     
+    // Debug: log today and active rentals
+    console.log("Today:", today, "Today string:", todayString);
+    console.log("Active rentals count:", activeRentals.length);
+    
     const overdue = activeRentals
       .filter((r) => {
-        if (!r.end_date) return false;
+        if (!r.end_date) {
+          console.log("Rental", r.rental_id, "has no end_date");
+          return false;
+        }
         const end = normalizeDateForComparison(r.end_date);
-        if (!end) return false;
+        if (!end) {
+          console.log("Rental", r.rental_id, "end_date could not be parsed:", r.end_date);
+          return false;
+        }
         // Only mark as overdue if end date is strictly before today (not equal to today)
         // Compare dates as date-only (ignore time)
         const isOverdue = end < today;
+        console.log(`Rental ${r.rental_id}: end_date=${r.end_date}, parsed=${end.toISOString()}, today=${today.toISOString()}, isOverdue=${isOverdue}`);
         return isOverdue;
       })
       .sort((a, b) => {
@@ -125,6 +137,7 @@ function AdminOverduePane() {
         return (dateA || new Date(0)) - (dateB || new Date(0));
       });
     
+    console.log("Overdue rentals count:", overdue.length);
     return overdue;
   }, [rentals, todayString]);
 
@@ -155,53 +168,8 @@ function AdminOverduePane() {
     return Math.max(1, Math.floor(diffMs / (1000 * 60 * 60 * 24)));
   };
 
-  const formatDate = (dateStr) => {
-    if (!dateStr) return "";
-    
-    // Extract date-only portion if it's an ISO string with time
-    let dateOnly = dateStr;
-    if (typeof dateStr === 'string' && dateStr.includes('T')) {
-      dateOnly = dateStr.split('T')[0];
-    }
-    
-    // Handle YYYY-MM-DD format (from PostgreSQL DATE type) as local date
-    if (typeof dateOnly === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dateOnly)) {
-      const [year, month, day] = dateOnly.split('-').map(Number);
-      const d = new Date(year, month - 1, day);
-      if (Number.isNaN(d.getTime())) return dateStr;
-      return d.toLocaleDateString(undefined, {
-        year: "numeric",
-        month: "short",
-        day: "numeric",
-      });
-    }
-    
-    // Fallback: try to parse as date, but extract date portion first to avoid timezone issues
-    // If it's still an ISO string, extract the date part
-    if (typeof dateStr === 'string' && dateStr.includes('T')) {
-      const extracted = dateStr.split('T')[0];
-      if (/^\d{4}-\d{2}-\d{2}$/.test(extracted)) {
-        const [year, month, day] = extracted.split('-').map(Number);
-        const d = new Date(year, month - 1, day);
-        if (!Number.isNaN(d.getTime())) {
-          return d.toLocaleDateString(undefined, {
-            year: "numeric",
-            month: "short",
-            day: "numeric",
-          });
-        }
-      }
-    }
-    
-    // Last resort: try parsing directly (may have timezone issues)
-    const d = new Date(dateStr);
-    if (Number.isNaN(d.getTime())) return dateStr;
-    return d.toLocaleDateString(undefined, {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-    });
-  };
+  // Use the shared formatDate utility which handles timezone issues correctly
+  const formatDate = formatDateUtil;
 
   const getVehicleLabel = (vehicleId) => {
     const v = vehicles.find((veh) => veh.vehicle_id === vehicleId);
