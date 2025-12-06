@@ -6,7 +6,7 @@ import RentalTable from "../components/admin/RentalTable";
 import ReturnModal from "../components/admin/ReturnModal";
 import "../css/AdminDashboard.css";
 
-const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:3000";
+const API_BASE = import.meta.env.MODE === "development" ? "http://localhost:3000" : "";
 
 function AdminRentals() {
   const [rentals, setRentals] = useState([]);
@@ -183,9 +183,10 @@ function AdminRentals() {
 
 
   return (
-    <div className="admin-dashboard">
+    <>
       <AdminNavBar />
-      <div className="admin-dashboard-content">
+      <div className="admin-dashboard">
+        <div className="admin-dashboard-content">
         <header className="admin-header">
           <h1>Admin Rentals</h1>
           <p>Manage all active and past vehicle rentals.</p>
@@ -248,8 +249,9 @@ function AdminRentals() {
             processing={processingReturn}
           />
         )}
+        </div>
       </div>
-    </div>
+    </>
   );
 }
 

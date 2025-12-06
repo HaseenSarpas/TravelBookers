@@ -1,5 +1,44 @@
 import { sql } from "../config/db.js";
 
+// Helper function to ensure Cloudinary URLs are HTTPS and properly formatted
+const ensureHttpsUrl = (url) => {
+  if (!url || typeof url !== 'string') return url;
+  
+  // Trim whitespace
+  url = url.trim();
+  
+  // If it's already a full HTTPS URL, return as-is
+  if (url.startsWith("https://")) {
+    return url;
+  }
+  
+  // Convert HTTP Cloudinary URLs to HTTPS
+  if (url.startsWith("http://res.cloudinary.com") || url.startsWith("http://cloudinary.com")) {
+    return url.replace("http://", "https://");
+  }
+  
+  // If it starts with //, prepend https:
+  if (url.startsWith("//")) {
+    return "https:" + url;
+  }
+  
+  // If it's a Cloudinary URL without protocol, add https
+  if (url.startsWith("res.cloudinary.com")) {
+    return "https://" + url;
+  }
+  
+  // Return as-is for other cases (might be a relative URL or different domain)
+  return url;
+};
+
+// Helper function to normalize image data
+const normalizeImage = (image) => {
+  return {
+    ...image,
+    image_url: ensureHttpsUrl(image.image_url),
+  };
+};
+
 // CREATE READ UPDATE and DELETE operations (CRUD)
 
 export const getImages = async (req, res) => {
@@ -39,7 +78,21 @@ export const getImages = async (req, res) => {
       `;
     }
 
-    res.status(200).json({ success: true, data: images });
+    // Normalize all image URLs to ensure HTTPS
+    const normalizedImages = images.map(normalizeImage);
+    
+    // Log for debugging (can remove later)
+    if (images.length > 0) {
+      console.log("=== IMAGE URL DEBUGGING ===");
+      console.log(`Total images: ${images.length}`);
+      images.slice(0, 3).forEach((img, idx) => {
+        console.log(`Image ${idx + 1} - Raw URL from DB:`, img.image_url);
+        console.log(`Image ${idx + 1} - Normalized URL:`, normalizedImages[idx].image_url);
+      });
+      console.log("===========================");
+    }
+    
+    res.status(200).json({ success: true, data: normalizedImages });
   } catch (error) {
     console.log("Error fetching images:", error);
     res.status(500).json({ success: false, message: "Internal Server Error" });
@@ -60,7 +113,8 @@ export const getImage = async (req, res) => {
         .json({ success: false, message: "Image not found" });
     }
 
-    res.status(200).json({ success: true, data: image[0] });
+    // Normalize image URL to ensure HTTPS
+    res.status(200).json({ success: true, data: normalizeImage(image[0]) });
   } catch (error) {
     console.log("Error fetching image:", error);
     res.status(500).json({ success: false, message: "Internal Server Error" });
@@ -83,7 +137,8 @@ export const createImage = async (req, res) => {
       RETURNING *
     `;
 
-    res.status(201).json({ success: true, data: newImage[0] });
+    // Normalize image URL to ensure HTTPS
+    res.status(201).json({ success: true, data: normalizeImage(newImage[0]) });
   } catch (error) {
     if (error.code === "23503") {
       return res
@@ -122,7 +177,8 @@ export const updateImage = async (req, res) => {
       RETURNING *
     `;
 
-    res.status(200).json({ success: true, data: updatedImage[0] });
+    // Normalize image URL to ensure HTTPS
+    res.status(200).json({ success: true, data: normalizeImage(updatedImage[0]) });
   } catch (error) {
     if (error.code === "23503") {
       return res
@@ -150,7 +206,8 @@ export const deleteImage = async (req, res) => {
         .json({ success: false, message: "Image not found" });
     }
 
-    res.status(200).json({ success: true, data: deletedImage[0] });
+    // Normalize image URL to ensure HTTPS
+    res.status(200).json({ success: true, data: normalizeImage(deletedImage[0]) });
   } catch (error) {
     console.log("Error deleting image:", error);
     res.status(500).json({ success: false, message: "Internal Server Error" });

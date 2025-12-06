@@ -28,12 +28,21 @@ function VehicleCard({
 
   const defaultImage = "https://via.placeholder.com/400x300?text=No+Image";
 
+  const handleImageError = (e) => {
+    // Prevent infinite loop - only replace if it's not already the default image
+    if (e.target.src !== defaultImage && !e.target.src.includes('placeholder')) {
+      console.error("Image failed to load:", imageUrl, "for vehicle:", vehicle.vehicle_id);
+      e.target.src = defaultImage;
+    }
+  };
+
   return (
     <div className="vehicle-card" onClick={handleCardClick}>
       <div className="vehicle-image">
         <img
           src={imageUrl || defaultImage}
           alt={`${vehicle.year} ${vehicle.make} ${vehicle.model}`}
+          onError={handleImageError}
         />
         <div className="vehicle-overlay">
           <button

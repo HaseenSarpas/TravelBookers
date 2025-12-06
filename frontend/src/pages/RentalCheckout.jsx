@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState, useRef } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import "../css/AdminDashboard.css";
 
-const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:3000";
+const API_BASE = import.meta.env.MODE === "development" ? "http://localhost:3000" : "";
 const PENDING_RENTAL_KEY = "travelbookers_pending_rental";
 
 function RentalCheckout() {

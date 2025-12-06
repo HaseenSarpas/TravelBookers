@@ -4,6 +4,8 @@ import morgan from "morgan";
 import cors from "cors";
 import dotenv from "dotenv";
 import { aj } from "./lib/arcjet.js"; //arcjet rate limiting middleware
+import path from "path";
+import { existsSync } from "fs";
 
 import vehicleRoutes from "./routes/vehicleRoutes.js";
 import roleRoutes from "./routes/roleRoutes.js";
@@ -22,10 +24,29 @@ dotenv.config(); // Load environment variables from .env file
 
 const app = express(); //start of backend
 const PORT = process.env.PORT || 3000; // Use the PORT from environment variables to localhost its good to put any setup variables in the .env file
+const __dirname = path.resolve();
 
 app.use(express.json()); // built-in middleware to parse JSON bodies
 app.use(cors()); // cors is a middleware that enables Cross-Origin Resource Sharing so we dont get CORS errors
-app.use(helmet()); // helmet is a security middleware that helps you protect your app by setting up various HTTP headsers
+
+// Configure helmet with Content Security Policy that allows Cloudinary images
+app.use(
+  helmet({
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        imgSrc: [
+          "'self'",
+          "data:",
+          "https://res.cloudinary.com",
+          "https://via.placeholder.com",
+        ],
+        scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"], // Needed for React in production
+        styleSrc: ["'self'", "'unsafe-inline'"], // Needed for inline styles
+      },
+    },
+  })
+);
 app.use(morgan("dev")); // morgan is a logging middleware that logs HTTP requests and errors
 
 //apply arjet rate limiting to all routes
@@ -74,22 +95,28 @@ app.use("/api/comments", commentRoutes);
 app.use("/api/payments", paymentRoutes);
 app.use("/api/mailerlite", mailerLiteRoutes);
 
-// Add a simple root route
-app.get("/", (req, res) => {
-  res.json({
-    message: "TravelBookers API is running!",
-    endpoints: {
-      vehicles: "/api/vehicles",
-      roles: "/api/roles",
-      users: "/api/users",
-      images: "/api/images",
-      favorites: "/api/favorites",
-      rentals: "/api/rentals",
-      comments: "/api/comments",
-      mailerLite: "/api/mailerlite",
-    },
+// Add a simple root route (only if frontend dist doesn't exist)
+// If dist exists, the React app will be served instead
+const distPath = path.join(__dirname, "/frontend/dist");
+const distExists = existsSync(distPath);
+
+if (!distExists && process.env.NODE_ENV !== "production") {
+  app.get("/", (req, res) => {
+    res.json({
+      message: "TravelBookers API is running!",
+      endpoints: {
+        vehicles: "/api/vehicles",
+        roles: "/api/roles",
+        users: "/api/users",
+        images: "/api/images",
+        favorites: "/api/favorites",
+        rentals: "/api/rentals",
+        comments: "/api/comments",
+        mailerLite: "/api/mailerlite",
+      },
+    });
   });
-});
+}
 
 async function initDB() {
   try {
@@ -258,6 +285,24 @@ async function initDB() {
     console.error("Error stack:", error.stack);
   }
 }
+
+// Serve React app if dist folder exists (works in both dev and production)
+if (distExists) {
+  // Serve static files from the React build folder
+  app.use(express.static(distPath));
+  
+  // Catch-all handler: send back React's index.html file for client-side routing
+  // Use middleware approach for Express 5 compatibility
+  // This must come AFTER all API routes but will handle all non-API routes
+  app.use((req, res, next) => {
+    // Skip API routes - let them fall through to 404 if not matched
+    if (req.path.startsWith("/api")) {
+      return next();
+    }
+    // For all other routes (including root), send index.html (handles React Router)
+    res.sendFile(path.resolve(distPath, "index.html"));
+  });
+} 
 
 initDB().then(() => {
   app.listen(PORT, () => {

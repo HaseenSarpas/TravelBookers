@@ -1,7 +1,7 @@
 import { useState } from "react";
 import "../css/SignInModal.css";
 
-const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:3000";
+const API_BASE = import.meta.env.MODE === "development" ? "http://localhost:3000" : "";
 
 function SignInModal({ isOpen, onClose, message }) {
   const [email, setEmail] = useState("");

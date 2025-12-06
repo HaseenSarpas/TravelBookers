@@ -7,14 +7,19 @@ body {
 }
 
 .admin-navbar {
-  width: 100%;
+  width: 100vw;
+  max-width: 100%;
   background: #022d57;
   border-bottom: 4px solid #f5b800;
-  padding: 0.5rem 0; /* vertical padding only; inner content will be constrained */
+  padding: 0.75rem 0; /* vertical padding */
   color: #fff;
   position: sticky;
   top: 0;
+  left: 0;
+  right: 0;
   z-index: 1200;
+  margin: 0;
+  box-sizing: border-box;
 }
 
 .admin-navbar__content {
@@ -24,9 +29,10 @@ body {
   gap: 1.5rem;
   flex-wrap: nowrap;
   position: relative; /* needed for absolutely centered links */
-  max-width: 1200px;
+  max-width: 1400px;
   margin: 0 auto;
-  padding: 0 1rem; /* horizontal inner padding */
+  padding: 0 2rem; /* horizontal inner padding */
+  box-sizing: border-box;
 }
 
 .admin-navbar__brand {

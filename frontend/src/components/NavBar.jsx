@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import "../css/NavBar.css"; // make sure your CSS file is updated
 
-const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:3000";
+const API_BASE = import.meta.env.MODE === "development" ? "http://localhost:3000" : "";
 
 function NavBar({ onRequireSignIn }) {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);

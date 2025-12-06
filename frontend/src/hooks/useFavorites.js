@@ -1,6 +1,6 @@
 import { useEffect, useState, useMemo } from "react";
 
-const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:3000";
+const API_BASE = import.meta.env.MODE === "development" ? "http://localhost:3000" : "";
 
 export function useFavorites(currentUser) {
   const [favorites, setFavorites] = useState([]);

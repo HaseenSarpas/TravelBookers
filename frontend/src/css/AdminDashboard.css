@@ -1,8 +1,11 @@
 .admin-dashboard {
   padding: 2rem;
   background: #989ba2;
-  min-height: calc(100vh - 96px);
+  min-height: 100vh;
   color: #0f172a;
+  margin: 0;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .admin-dashboard-content {

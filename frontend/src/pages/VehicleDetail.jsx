@@ -10,7 +10,7 @@ import "swiper/css/thumbs";
 import "swiper/css/free-mode";
 import "../css/VehicleDetail.css";
 
-const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:3000";
+const API_BASE = import.meta.env.MODE === "development" ? "http://localhost:3000" : "";
 
 function VehicleDetail({ onRequireSignIn }) {
   const { id } = useParams();
@@ -217,6 +217,13 @@ function VehicleDetail({ onRequireSignIn }) {
                         src={img.image_url}
                         alt={`${vehicle.year} ${vehicle.make} ${vehicle.model} - Image ${index + 1}`}
                         className="carousel-main-image"
+                        onError={(e) => {
+                          // Prevent infinite loop - only replace if it's not already the default image
+                          if (e.target.src !== defaultImage && !e.target.src.includes('placeholder')) {
+                            console.error("Image failed to load:", img.image_url);
+                            e.target.src = defaultImage;
+                          }
+                        }}
                       />
                     </SwiperSlide>
                   ))}
@@ -239,6 +246,13 @@ function VehicleDetail({ onRequireSignIn }) {
                           src={img.image_url}
                           alt={`${vehicle.make} ${vehicle.model} - Thumbnail ${index + 1}`}
                           className="thumbnail"
+                          onError={(e) => {
+                            // Prevent infinite loop - only replace if it's not already the default image
+                            if (e.target.src !== defaultImage && !e.target.src.includes('placeholder')) {
+                              console.error("Thumbnail failed to load:", img.image_url);
+                              e.target.src = defaultImage;
+                            }
+                          }}
                         />
                       </SwiperSlide>
                     ))}
