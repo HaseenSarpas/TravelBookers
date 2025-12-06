@@ -50,38 +50,58 @@ function AdminOverduePane() {
   }, []);
 
   // Get today's date in local timezone, normalized to midnight
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+  // Use useMemo to ensure it's calculated consistently
+  const today = useMemo(() => {
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    return d;
+  }, []);
 
   // Helper to normalize date strings to local midnight (avoiding timezone issues)
+  // PostgreSQL DATE values come as strings, and we need to parse them as local dates
   const normalizeDateForComparison = (dateStr) => {
     if (!dateStr) return null;
-    // If date is already in YYYY-MM-DD format, parse it as local date
-    if (typeof dateStr === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
-      const [year, month, day] = dateStr.split('-').map(Number);
+    
+    // Extract date-only portion if it's an ISO string with time
+    let dateOnly = dateStr;
+    if (typeof dateStr === 'string' && dateStr.includes('T')) {
+      dateOnly = dateStr.split('T')[0];
+    }
+    
+    // If date is in YYYY-MM-DD format, parse it as local date (not UTC)
+    if (typeof dateOnly === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dateOnly)) {
+      const [year, month, day] = dateOnly.split('-').map(Number);
+      // Create date in local timezone (not UTC)
       const date = new Date(year, month - 1, day);
       date.setHours(0, 0, 0, 0);
       return date;
     }
-    // Otherwise, parse normally but normalize to local midnight
+    
+    // Fallback: try to parse and normalize
     const date = new Date(dateStr);
+    if (isNaN(date.getTime())) return null;
+    // Normalize to local midnight
     date.setHours(0, 0, 0, 0);
     return date;
   };
 
-  const overdueRentals = rentals
-    .filter((r) => r.status === "active")
-    .filter((r) => {
-      if (!r.end_date) return false;
-      const end = normalizeDateForComparison(r.end_date);
-      if (!end) return false;
-      return end < today;
-    })
-    .sort((a, b) => {
-      const dateA = normalizeDateForComparison(a.end_date);
-      const dateB = normalizeDateForComparison(b.end_date);
-      return (dateA || new Date(0)) - (dateB || new Date(0));
-    });
+  const overdueRentals = useMemo(() => {
+    return rentals
+      .filter((r) => r.status === "active")
+      .filter((r) => {
+        if (!r.end_date) return false;
+        const end = normalizeDateForComparison(r.end_date);
+        if (!end) return false;
+        // Only mark as overdue if end date is strictly before today (not equal to today)
+        // Compare dates as date-only (ignore time)
+        return end < today;
+      })
+      .sort((a, b) => {
+        const dateA = normalizeDateForComparison(a.end_date);
+        const dateB = normalizeDateForComparison(b.end_date);
+        return (dateA || new Date(0)) - (dateB || new Date(0));
+      });
+  }, [rentals, today]);
 
   if (loading && rentals.length === 0) {
     return (
@@ -112,6 +132,20 @@ function AdminOverduePane() {
 
   const formatDate = (dateStr) => {
     if (!dateStr) return "";
+    
+    // Handle YYYY-MM-DD format (from PostgreSQL DATE type) as local date
+    if (typeof dateStr === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+      const [year, month, day] = dateStr.split('-').map(Number);
+      const d = new Date(year, month - 1, day);
+      if (Number.isNaN(d.getTime())) return dateStr;
+      return d.toLocaleDateString(undefined, {
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+      });
+    }
+    
+    // Handle ISO strings or other formats
     const d = new Date(dateStr);
     if (Number.isNaN(d.getTime())) return dateStr;
     return d.toLocaleDateString(undefined, {

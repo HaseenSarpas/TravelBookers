@@ -1,10 +1,24 @@
 /**
  * Formats a date string to a human-readable format
- * @param {string} dateStr - ISO date string
+ * @param {string} dateStr - ISO date string or YYYY-MM-DD string
  * @returns {string} Formatted date string
  */
 export const formatDate = (dateStr) => {
   if (!dateStr) return "";
+  
+  // Handle YYYY-MM-DD format (from PostgreSQL DATE type) as local date
+  if (typeof dateStr === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+    const [year, month, day] = dateStr.split('-').map(Number);
+    const d = new Date(year, month - 1, day);
+    if (Number.isNaN(d.getTime())) return dateStr;
+    return d.toLocaleDateString(undefined, {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+    });
+  }
+  
+  // Handle ISO strings or other formats
   const d = new Date(dateStr);
   if (Number.isNaN(d.getTime())) return dateStr;
   return d.toLocaleDateString(undefined, {
